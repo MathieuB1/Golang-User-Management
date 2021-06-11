@@ -1,5 +1,4 @@
-module api-test
-
+module user_rest
 go 1.16
 
 require (

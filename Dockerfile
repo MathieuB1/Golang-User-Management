@@ -1,6 +1,3 @@
-
-# Compile stage
-
 FROM ubuntu:bionic
 RUN apt update && apt upgrade -y && apt install -y vim wget curl
 
@@ -13,19 +10,21 @@ RUN wget https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz && \
 ENV PATH $PATH:/usr/local/go/bin
 RUN go version
 
+# Go Files
+ENV PROJECT_PATH user_rest
+
 # Install Go Env
-COPY ./web_rest/ /web_rest/
-WORKDIR /web_rest/
+RUN mkdir -p /${PROJECT_PATH}/
+WORKDIR /${PROJECT_PATH}/
 
 # Install Go Repo
-RUN go mod init api-test
+RUN cd ../ && go mod init ${PROJECT_PATH}
 # Install Go Packages
 RUN go get github.com/gorilla/mux \
        gorm.io/gorm \
        gorm.io/driver/postgres
 
-#RUN cd /web_rest/ && go build -o .
-
-CMD tail -f /dev/null
-#cd go build -o .
-#run the binary
+# Mount the current Go path
+ADD ./${PROJECT_PATH}/ /${PROJECT_PATH}/
+# Run the server
+CMD go run main.go && tail -f /dev/null

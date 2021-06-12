@@ -1,10 +1,10 @@
 package controllers
 
 import (
-	"user_rest/user_rest/common"
-	"user_rest/user_rest/models"
 	"log"
 	"net/http"
+	"user_rest/user_rest/common"
+	"user_rest/user_rest/models"
 
 	"github.com/gorilla/mux"
 )
@@ -117,6 +117,28 @@ func (h *BaseHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("End CreateUser.")
 	common.SerializeAndSendResponse(&w, user)
+}
+
+func (h *BaseHandler) FindUser(w http.ResponseWriter, r *http.Request) {
+	log.Println("Starting FindUser...")
+
+	if IsUserAuth(h, w, r) {
+
+		var column = "id"
+		vars := mux.Vars(r)
+		id := vars[column]
+
+		user, err := h.userRepo.FindOneRecord(&column, &id)
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		common.SerializeAndSendResponse(&w, user)
+	}
+
+	log.Println("End FindUser...")
 }
 
 // Delete One User

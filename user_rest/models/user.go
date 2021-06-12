@@ -5,7 +5,7 @@ import "gorm.io/gorm"
 // User
 type User struct {
 	gorm.Model `json:"-"`
-	ID         uint   `gorm:"primary_key"`
+	ID         int    `gorm:"primary_key"`
 	Login      string `gorm:"unique_index:idx_login" json:"-"`
 	Password   string `json:"-"`
 	First_name string

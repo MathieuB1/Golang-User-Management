@@ -12,6 +12,7 @@ func InitRooting(h controllers.BaseHandler) *mux.Router {
 
 	myRouter.HandleFunc("/", h.Status).Methods("GET")
 	myRouter.HandleFunc("/users/", h.CreateUser).Methods("POST")
+	myRouter.HandleFunc("/users/{id}", h.FindUser).Methods("GET")
 	myRouter.HandleFunc("/users/{id}", h.DeleteUser).Methods("DELETE")
 	myRouter.HandleFunc("/users/{id}", h.UpdateUser).Methods("PUT")
 	myRouter.HandleFunc("/users/", h.ListUsers).Methods("GET")

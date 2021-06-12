@@ -32,7 +32,7 @@ func isAuthorised(h *BaseHandler, login *string, password *string) bool {
 	return common.CreateHash(password) == pass
 }
 
-func IsUserAuth(h *BaseHandler, w http.ResponseWriter, r *http.Request) bool {
+func IsUserAuth(h *BaseHandler, w http.ResponseWriter, r *http.Request) *string {
 	w.Header().Add("Content-Type", "application/json")
 
 	log.Println("Starting Login...")
@@ -42,18 +42,18 @@ func IsUserAuth(h *BaseHandler, w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Add("WWW-Authenticate", `Basic realm="Give login and password"`)
 		w.WriteHeader(http.StatusUnauthorized)
 		w.Write([]byte(`{"message": "No basic auth present"}`))
-		return false
+		return nil
 	}
 
 	if !isAuthorised(h, &login, &password) {
 		w.Header().Add("WWW-Authenticate", `Basic realm="Give login and password"`)
 		w.WriteHeader(http.StatusUnauthorized)
 		w.Write([]byte(`{"message": "Invalid username or password"}`))
-		return false
+		return nil
 	}
 	log.Println("End Login.")
 
-	return true
+	return &login
 }
 
 //**********************************
@@ -122,16 +122,22 @@ func (h *BaseHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 func (h *BaseHandler) FindUser(w http.ResponseWriter, r *http.Request) {
 	log.Println("Starting FindUser...")
 
-	if IsUserAuth(h, w, r) {
+	userLogged := IsUserAuth(h, w, r)
+	if userLogged != nil {
 
 		var column = "id"
 		vars := mux.Vars(r)
 		id := vars[column]
 
 		user, err := h.userRepo.FindOneRecord(&column, &id)
-
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// Check if its the correct User
+		if user.Login != *userLogged {
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
@@ -145,13 +151,28 @@ func (h *BaseHandler) FindUser(w http.ResponseWriter, r *http.Request) {
 func (h *BaseHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	log.Println("Starting DeleteUser...")
 
-	if IsUserAuth(h, w, r) {
+	userLogged := IsUserAuth(h, w, r)
+	if userLogged != nil {
 
 		vars := mux.Vars(r)
 		id := vars["id"]
 
-		err := h.userRepo.Delete(id)
+		// Check if its the correct User
+		var column = "id"
+		user, err := h.userRepo.FindOneRecord(&column, &id)
 		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// Check if its the correct User
+		if user.Login != *userLogged {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		deletionStatus := h.userRepo.Delete(id)
+		if deletionStatus != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -169,7 +190,8 @@ func (h *BaseHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 func (h *BaseHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	log.Println("Starting UpdateUser...")
 
-	if IsUserAuth(h, w, r) {
+	userLogged := IsUserAuth(h, w, r)
+	if userLogged != nil {
 
 		r.ParseForm()
 
@@ -192,6 +214,12 @@ func (h *BaseHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		existingUser, err := h.userRepo.FindOneRecord(&column, &id)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// Check if its the correct User
+		if existingUser.Login != *userLogged {
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 

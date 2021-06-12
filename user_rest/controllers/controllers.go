@@ -187,7 +187,32 @@ func (h *BaseHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		password = common.CreateHash(&password)
 
 		updatedUser := &models.UserUpdate{ID: id, Login: login, Password: password, First_name: first_name, Last_name: last_name, Email: email}
-		userUpdated, err := h.userRepo.Update(id, updatedUser)
+
+		var column = "id"
+		existingUser, err := h.userRepo.FindOneRecord(&column, &id)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// Apply Patch
+		if updatedUser.Email != "" {
+			existingUser.Email = updatedUser.Email
+		}
+		if updatedUser.Login != "" {
+			existingUser.Login = updatedUser.Login
+		}
+		if updatedUser.Password != "" {
+			existingUser.Password = updatedUser.Password
+		}
+		if updatedUser.First_name != "" {
+			existingUser.First_name = updatedUser.First_name
+		}
+		if updatedUser.Last_name != "" {
+			existingUser.Last_name = updatedUser.Last_name
+		}
+
+		userUpdated, err := h.userRepo.Update(id, existingUser)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

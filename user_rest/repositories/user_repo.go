@@ -35,34 +35,12 @@ func (r *UserRepo) Save(user *models.User) (*models.User, error) {
 }
 
 func (r *UserRepo) Delete(id string) error {
-
 	var users []models.User
 	r.db.Where("id = ?", id).Delete(&users)
 	return nil
 }
 
-func (r *UserRepo) Update(id string, userUpdate *models.UserUpdate) (*models.User, error) {
-
-	var existingUser models.User
-	r.db.Where("id = ?", id).Find(&existingUser)
-
-	if userUpdate.Email != "" {
-		existingUser.Email = userUpdate.Email
-	}
-	if userUpdate.Login != "" {
-		existingUser.Login = userUpdate.Login
-	}
-	if userUpdate.Password != "" {
-		existingUser.Password = userUpdate.Password
-	}
-	if userUpdate.First_name != "" {
-		existingUser.First_name = userUpdate.First_name
-	}
-	if userUpdate.Last_name != "" {
-		existingUser.Last_name = userUpdate.Last_name
-	}
-
-	r.db.Save(&existingUser)
-
-	return &existingUser, nil
+func (r *UserRepo) Update(id string, userUpdate *models.User) (*models.User, error) {
+	r.db.Save(&userUpdate)
+	return userUpdate, nil
 }

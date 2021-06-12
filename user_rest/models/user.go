@@ -28,6 +28,6 @@ type UserRepository interface {
 	FindAllRecords() (*[]User, error)
 	FindOneRecord(column *string, value *string) (*User, error)
 	Save(user *User) (*User, error)
-	Update(id string, userUpdate *UserUpdate) (*User, error)
+	Update(id string, userUpdate *User) (*User, error)
 	Delete(id string) error
 }

@@ -1,8 +1,10 @@
 package controllers
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 	"user_rest/user_rest/common"
 	"user_rest/user_rest/models"
 
@@ -22,11 +24,49 @@ func NewBaseHandler(userRepo models.UserRepository) *BaseHandler {
 }
 
 //**********************************
+// Tools
+//**********************************
+func getUserFromBytes(w http.ResponseWriter, userByte *[]byte) *models.User {
+	var user models.User
+	err := json.Unmarshal(*userByte, &user)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return &models.User{}
+	}
+	return &user
+}
+
+func getUsersFromBytes(w http.ResponseWriter, userByte *[]byte) *[]models.User {
+	var user []models.User
+	err := json.Unmarshal(*userByte, &user)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return &[]models.User{}
+	}
+	return &user
+}
+
+func filterKeysUser(user *models.User) *models.UserUpdate {
+	return &models.UserUpdate{ID: strconv.Itoa(user.ID), Login: user.Login,
+		Password:   user.Password,
+		First_name: user.First_name,
+		Last_name:  user.Last_name,
+		Email:      user.Email}
+}
+
+//**********************************
 // Helper for Authentification
 //**********************************
-func isAuthorised(h *BaseHandler, login *string, password *string) bool {
+func isAuthorised(w http.ResponseWriter, h *BaseHandler, login *string, password *string) bool {
 	firstname := "login"
-	user, _ := h.userRepo.FindOneRecord(&firstname, login)
+
+	userByte, err := h.userRepo.FindOneRecord(&firstname, login)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return false
+	}
+	user := getUserFromBytes(w, userByte)
+
 	pass := user.Password
 
 	return common.CreateHash(password) == pass
@@ -45,7 +85,7 @@ func IsUserAuth(h *BaseHandler, w http.ResponseWriter, r *http.Request) *string 
 		return nil
 	}
 
-	if !isAuthorised(h, &login, &password) {
+	if !isAuthorised(w, h, &login, &password) {
 		w.Header().Add("WWW-Authenticate", `Basic realm="Give login and password"`)
 		w.WriteHeader(http.StatusUnauthorized)
 		w.Write([]byte(`{"message": "Invalid username or password"}`))
@@ -70,11 +110,13 @@ func (h *BaseHandler) Status(w http.ResponseWriter, r *http.Request) {
 func (h *BaseHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	log.Println("Starting ListUsers...")
 
-	allUsers, err := h.userRepo.FindAllRecords()
+	allUsersBytes, err := h.userRepo.FindAllRecords()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	allUsers := getUsersFromBytes(w, allUsersBytes)
 
 	log.Println("End ListUsers...")
 	common.SerializeAndSendResponse(&w, allUsers)
@@ -107,7 +149,10 @@ func (h *BaseHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	password = common.CreateHash(&password)
 
-	var user = &models.User{Login: login, Password: password, First_name: first_name, Last_name: last_name, Email: email}
+	var user = &models.User{Login: login, Password: password,
+		First_name: first_name,
+		Last_name:  last_name,
+		Email:      email}
 
 	_, err := h.userRepo.Save(user)
 	if err != nil {
@@ -115,8 +160,11 @@ func (h *BaseHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Mask fields
+	userDisplay := filterKeysUser(user)
+
 	log.Println("End CreateUser.")
-	common.SerializeAndSendResponse(&w, user)
+	common.SerializeAndSendResponse(&w, userDisplay)
 }
 
 func (h *BaseHandler) FindUser(w http.ResponseWriter, r *http.Request) {
@@ -129,11 +177,13 @@ func (h *BaseHandler) FindUser(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		id := vars[column]
 
-		user, err := h.userRepo.FindOneRecord(&column, &id)
+		userByte, err := h.userRepo.FindOneRecord(&column, &id)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		user := getUserFromBytes(w, userByte)
 
 		// Check if its the correct User
 		if user.Login != *userLogged {
@@ -141,7 +191,10 @@ func (h *BaseHandler) FindUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		common.SerializeAndSendResponse(&w, user)
+		// Mask fields
+		displayUser := filterKeysUser(user)
+
+		common.SerializeAndSendResponse(&w, displayUser)
 	}
 
 	log.Println("End FindUser...")
@@ -159,11 +212,12 @@ func (h *BaseHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 		// Check if its the correct User
 		var column = "id"
-		user, err := h.userRepo.FindOneRecord(&column, &id)
+		userByte, err := h.userRepo.FindOneRecord(&column, &id)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		user := getUserFromBytes(w, userByte)
 
 		// Check if its the correct User
 		if user.Login != *userLogged {
@@ -211,11 +265,12 @@ func (h *BaseHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		updatedUser := &models.UserUpdate{ID: id, Login: login, Password: password, First_name: first_name, Last_name: last_name, Email: email}
 
 		var column = "id"
-		existingUser, err := h.userRepo.FindOneRecord(&column, &id)
+		existingUserBytes, err := h.userRepo.FindOneRecord(&column, &id)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		existingUser := getUserFromBytes(w, existingUserBytes)
 
 		// Check if its the correct User
 		if existingUser.Login != *userLogged {
@@ -240,14 +295,18 @@ func (h *BaseHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 			existingUser.Last_name = updatedUser.Last_name
 		}
 
-		userUpdated, err := h.userRepo.Update(id, existingUser)
+		userUpdatedByte, err := h.userRepo.Update(id, existingUser)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		userUpdated := getUserFromBytes(w, userUpdatedByte)
+
+		// Mask fields
+		displayUser := filterKeysUser(userUpdated)
 
 		log.Println("End UpdateUser.")
-		common.SerializeAndSendResponse(&w, userUpdated)
+		common.SerializeAndSendResponse(&w, displayUser)
 	}
 
 	log.Println("End UpdateUser.")

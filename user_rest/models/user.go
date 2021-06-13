@@ -6,8 +6,8 @@ import "gorm.io/gorm"
 type User struct {
 	gorm.Model `json:"-"`
 	ID         int    `gorm:"primary_key"`
-	Login      string `gorm:"unique_index:idx_login" json:"-"`
-	Password   string `json:"-"`
+	Login      string `gorm:"unique_index:idx_login"`
+	Password   string
 	First_name string
 	Last_name  string
 	Email      string `gorm:"unique_index:idx_email"`
@@ -25,9 +25,9 @@ type UserUpdate struct {
 
 // UserRepository
 type UserRepository interface {
-	FindAllRecords() (*[]User, error)
-	FindOneRecord(column *string, value *string) (*User, error)
-	Save(user *User) (*User, error)
-	Update(id string, userUpdate *User) (*User, error)
+	FindAllRecords() (*[]byte, error)
+	FindOneRecord(column *string, value *string) (*[]byte, error)
 	Delete(id string) error
+	Save(objToSave interface{}) (*[]byte, error)
+	Update(id string, objToUpdate interface{}) (*[]byte, error)
 }

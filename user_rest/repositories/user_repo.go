@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"encoding/json"
 	"user_rest/user_rest/models"
 
 	"gorm.io/gorm"
@@ -16,22 +17,25 @@ func NewUserRepo(db *gorm.DB) *UserRepo {
 	}
 }
 
-func (r *UserRepo) FindOneRecord(column *string, value *string) (*models.User, error) {
+func (r *UserRepo) FindOneRecord(column *string, value *string) (*[]byte, error) {
 	var user models.User
 	condition := *column + " = ?"
 	r.db.Where(condition, value).Find(&user)
-	return &user, nil
+	byteData, _ := json.Marshal(user)
+	return &byteData, nil
 }
 
-func (r *UserRepo) FindAllRecords() (*[]models.User, error) {
+func (r *UserRepo) FindAllRecords() (*[]byte, error) {
 	var users []models.User
 	r.db.Find(&users)
-	return &users, nil
+	byteData, _ := json.Marshal(users)
+	return &byteData, nil
 }
 
-func (r *UserRepo) Save(user *models.User) (*models.User, error) {
+func (r *UserRepo) Save(user interface{}) (*[]byte, error) {
 	r.db.Create(user)
-	return user, nil
+	byteData, _ := json.Marshal(user)
+	return &byteData, nil
 }
 
 func (r *UserRepo) Delete(id string) error {
@@ -40,7 +44,8 @@ func (r *UserRepo) Delete(id string) error {
 	return nil
 }
 
-func (r *UserRepo) Update(id string, userUpdate *models.User) (*models.User, error) {
-	r.db.Save(&userUpdate)
-	return userUpdate, nil
+func (r *UserRepo) Update(id string, userUpdate interface{}) (*[]byte, error) {
+	r.db.Save(userUpdate)
+	byteData, _ := json.Marshal(userUpdate)
+	return &byteData, nil
 }

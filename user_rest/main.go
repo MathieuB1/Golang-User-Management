@@ -1,12 +1,12 @@
 package main
 
 import (
+	"log"
+	"net/http"
 	"user_rest/user_rest/controllers"
 	"user_rest/user_rest/repositories"
 	"user_rest/user_rest/routing"
 	"user_rest/user_rest/sqldb"
-	"log"
-	"net/http"
 )
 
 func main() {

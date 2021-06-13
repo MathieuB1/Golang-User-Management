@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 	"testing"
 )
 
@@ -41,7 +40,7 @@ func TestHomePageIntegration(t *testing.T) {
 
 // Format User
 type UserAssert struct {
-	ID         int
+	ID         string
 	First_name string
 	Last_name  string
 	Email      string
@@ -110,7 +109,7 @@ func TestBasicUserIntegeration(t *testing.T) {
 	refCreate := `{"First_name":"titi","Last_name":"titi","Email":"vfvdfv@vfvf.vf"}`
 	userAssertion(t, &refCreate, &userCreated)
 
-	IdCreated = strconv.Itoa(userCreated.ID)
+	IdCreated = userCreated.ID
 	t.Log("User " + IdCreated + " Created!")
 
 	//*********************************************************
@@ -119,6 +118,7 @@ func TestBasicUserIntegeration(t *testing.T) {
 	t.Log("Display One User...")
 
 	url = url_host + "/users/" + IdCreated
+
 	method = "GET"
 
 	reqGet, err := http.NewRequest(method, url, nil)
@@ -130,7 +130,7 @@ func TestBasicUserIntegeration(t *testing.T) {
 	data := []byte("titi:tuti")
 	pass := base64.StdEncoding.EncodeToString(data)
 
-	reqGet.Header.Add("Authorization", "Basic "+pass)
+	reqGet.Header.Set("Authorization", "Basic "+pass)
 
 	resGet, err := client.Do(reqGet)
 	if err == nil {
@@ -154,7 +154,7 @@ func TestBasicUserIntegeration(t *testing.T) {
 	refRead := `{"First_name":"titi","Last_name":"titi","Email":"vfvdfv@vfvf.vf"}`
 	userAssertion(t, &refRead, &userRead)
 
-	t.Log("User " + strconv.Itoa(userRead.ID) + " displayed!")
+	t.Log("User " + userRead.ID + " displayed!")
 
 	//*********************************************************
 	// Update User with Basic Auth
@@ -189,7 +189,7 @@ func TestBasicUserIntegeration(t *testing.T) {
 	refUpdate := `{"First_name":"toto","Last_name":"toto","Email":"toto@toto.fr"}`
 	userAssertion(t, &refUpdate, &userUpdate)
 
-	t.Log("User " + strconv.Itoa(userUpdate.ID) + " updated!")
+	t.Log("User " + userUpdate.ID + " updated!")
 
 	//*********************************************************
 	// Delete User with Basic Auth

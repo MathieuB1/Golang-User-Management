@@ -65,8 +65,8 @@ func isAuthorised(w http.ResponseWriter, h *BaseHandler, login *string, password
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return false
 	}
-	user := getUserFromBytes(w, userByte)
 
+	user := getUserFromBytes(w, userByte)
 	pass := user.Password
 
 	return common.CreateHash(password) == pass
@@ -147,24 +147,43 @@ func (h *BaseHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		email = r.FormValue("email")
 	}
 
-	password = common.CreateHash(&password)
+	if password != "" {
+		password = common.CreateHash(&password)
+	}
 
 	var user = &models.User{Login: login, Password: password,
 		First_name: first_name,
 		Last_name:  last_name,
 		Email:      email}
 
-	_, err := h.userRepo.Save(user)
+	// Check if user exists
+	var column = "login"
+	userByte, err := h.userRepo.FindOneRecord(&column, &user.Login)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	userExistInDB := getUserFromBytes(w, userByte)
 
-	// Mask fields
-	userDisplay := filterKeysUser(user)
+	// Reject the request if the user already exists
+	if userExistInDB.Login != user.Login {
 
-	log.Println("End CreateUser.")
-	common.SerializeAndSendResponse(&w, userDisplay)
+		_, err := h.userRepo.Save(user)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// Mask fields
+		userDisplay := filterKeysUser(user)
+
+		log.Println("End CreateUser.")
+		common.SerializeAndSendResponse(&w, userDisplay)
+
+	} else {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`{"message": "User already exist!"}`))
+	}
 }
 
 func (h *BaseHandler) FindUser(w http.ResponseWriter, r *http.Request) {
@@ -260,7 +279,9 @@ func (h *BaseHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		last_name = r.FormValue("last_name")
 		email = r.FormValue("email")
 
-		password = common.CreateHash(&password)
+		if password != "" {
+			password = common.CreateHash(&password)
+		}
 
 		updatedUser := &models.UserUpdate{ID: id, Login: login, Password: password, First_name: first_name, Last_name: last_name, Email: email}
 

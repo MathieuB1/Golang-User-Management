@@ -10,7 +10,7 @@ type User struct {
 	Password   string
 	First_name string
 	Last_name  string
-	Email      string `gorm:"unique_index:idx_email"`
+	Email      string `gorm:"unique_index:idx_email" json:"email"`
 }
 
 // Format User

@@ -4,24 +4,23 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
-	"net/http"
+	"user_rest/user_rest/context"
 )
 
-// Helper for Serialize
-func SerializeAndSendResponse(w *http.ResponseWriter, users interface{}) {
-
+// Helper for JSON Serializer
+func SerializeSender(users interface{}) ([]byte, error) {
 	res, err := json.Marshal(users)
 	if err != nil {
-		http.Error(*w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, err
 	}
 
-	(*w).Header().Set("Content-Type", "application/json")
-	(*w).Write(res)
+	return res, nil
 }
 
+// Helper for Creating Hash
 func CreateHash(key *string) string {
 	hasher := md5.New()
-	hasher.Write([]byte(*key))
+	addSalt := context.GlobalCtx.APP_SALT + *key
+	hasher.Write([]byte(addSalt))
 	return hex.EncodeToString(hasher.Sum(nil))
 }

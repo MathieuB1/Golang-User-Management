@@ -1,11 +1,10 @@
 package controllers
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
-	"strconv"
 	"user_rest/user_rest/common"
+	"user_rest/user_rest/controllers_tools"
 	"user_rest/user_rest/models"
 
 	"github.com/gorilla/mux"
@@ -24,37 +23,6 @@ func NewBaseHandler(userRepo models.UserRepository) *BaseHandler {
 }
 
 //**********************************
-// Tools
-//**********************************
-func getUserFromBytes(w http.ResponseWriter, userByte *[]byte) *models.User {
-	var user models.User
-	err := json.Unmarshal(*userByte, &user)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return &models.User{}
-	}
-	return &user
-}
-
-func getUsersFromBytes(w http.ResponseWriter, userByte *[]byte) *[]models.User {
-	var user []models.User
-	err := json.Unmarshal(*userByte, &user)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return &[]models.User{}
-	}
-	return &user
-}
-
-func filterKeysUser(user *models.User) *models.UserUpdate {
-	return &models.UserUpdate{ID: strconv.Itoa(user.ID), Login: user.Login,
-		Password:   user.Password,
-		First_name: user.First_name,
-		Last_name:  user.Last_name,
-		Email:      user.Email}
-}
-
-//**********************************
 // Helper for Authentification
 //**********************************
 func isAuthorised(w http.ResponseWriter, h *BaseHandler, login *string, password *string) bool {
@@ -66,7 +34,11 @@ func isAuthorised(w http.ResponseWriter, h *BaseHandler, login *string, password
 		return false
 	}
 
-	user := getUserFromBytes(w, userByte)
+	user, err := controllers_tools.GetUserFromBytes(userByte)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
 	pass := user.Password
 
 	return common.CreateHash(password) == pass
@@ -116,10 +88,21 @@ func (h *BaseHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	allUsers := getUsersFromBytes(w, allUsersBytes)
+	allUsers, err := controllers_tools.GetUsersFromBytes(allUsersBytes)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	log.Println("End ListUsers...")
-	common.SerializeAndSendResponse(&w, allUsers)
+
+	usersObj, err := common.SerializeSender(allUsers)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(usersObj)
 }
 
 // Create One User
@@ -163,11 +146,14 @@ func (h *BaseHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	userExistInDB := getUserFromBytes(w, userByte)
+	userExistInDB, err := controllers_tools.GetUserFromBytes(userByte)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 
 	// Reject the request if the user already exists
 	if userExistInDB.Login != user.Login {
-
+		log.Println("SAVING")
 		_, err := h.userRepo.Save(user)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -175,14 +161,21 @@ func (h *BaseHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Mask fields
-		userDisplay := filterKeysUser(user)
+		userDisplay := controllers_tools.FilterKeysUser(user)
+
+		userObj, err := common.SerializeSender(userDisplay)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 
 		log.Println("End CreateUser.")
-		common.SerializeAndSendResponse(&w, userDisplay)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(userObj)
 
 	} else {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(`{"message": "User already exist!"}`))
+		w.Write([]byte(`{"message": "User "` + user.Login + `" already exist!"}`))
 	}
 }
 
@@ -202,7 +195,10 @@ func (h *BaseHandler) FindUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		user := getUserFromBytes(w, userByte)
+		user, err := controllers_tools.GetUserFromBytes(userByte)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 
 		// Check if its the correct User
 		if user.Login != *userLogged {
@@ -211,9 +207,17 @@ func (h *BaseHandler) FindUser(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Mask fields
-		displayUser := filterKeysUser(user)
+		displayUser := controllers_tools.FilterKeysUser(user)
 
-		common.SerializeAndSendResponse(&w, displayUser)
+		userObj, err := common.SerializeSender(displayUser)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+
+		log.Println("End FindUser...")
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(userObj)
 	}
 
 	log.Println("End FindUser...")
@@ -236,7 +240,10 @@ func (h *BaseHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		user := getUserFromBytes(w, userByte)
+		user, err := controllers_tools.GetUserFromBytes(userByte)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 
 		// Check if its the correct User
 		if user.Login != *userLogged {
@@ -249,8 +256,6 @@ func (h *BaseHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-
-		log.Println("End DeleteUser.")
 
 		w.Write([]byte(`{"message": "User has been deleted!"}`))
 
@@ -291,7 +296,10 @@ func (h *BaseHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		existingUser := getUserFromBytes(w, existingUserBytes)
+		existingUser, err := controllers_tools.GetUserFromBytes(existingUserBytes)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 
 		// Check if its the correct User
 		if existingUser.Login != *userLogged {
@@ -321,13 +329,24 @@ func (h *BaseHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		userUpdated := getUserFromBytes(w, userUpdatedByte)
+		userUpdated, err := controllers_tools.GetUserFromBytes(userUpdatedByte)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 
 		// Mask fields
-		displayUser := filterKeysUser(userUpdated)
+		displayUser := controllers_tools.FilterKeysUser(userUpdated)
+
+		userObj, err := common.SerializeSender(displayUser)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 
 		log.Println("End UpdateUser.")
-		common.SerializeAndSendResponse(&w, displayUser)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(userObj)
+
 	}
 
 	log.Println("End UpdateUser.")

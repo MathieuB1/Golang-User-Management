@@ -1,7 +1,6 @@
 package itegration_scenario_test
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"io/ioutil"
@@ -15,10 +14,9 @@ var url_host = "http://" + host
 func TestHomePageIntegration(t *testing.T) {
 
 	t.Log("Go to Home Page...")
-	method := "GET"
 
 	client := &http.Client{}
-	req, err := http.NewRequest(method, url_host, nil)
+	req, err := http.NewRequest("GET", url_host, nil)
 
 	if err != nil {
 		t.Log(err)
@@ -77,10 +75,9 @@ func TestBasicUserIntegeration(t *testing.T) {
 	var IdCreated = ""
 
 	url := url_host + "/users/?login=titi&first_name=titi&last_name=titi&password=tuti&email=vfvdfv@vfvf.vf"
-	method := "POST"
 
 	client := &http.Client{}
-	reqCreate, err := http.NewRequest(method, url, &bytes.Buffer{})
+	reqCreate, err := http.NewRequest("POST", url, nil)
 	if err != nil {
 		t.Log(err)
 	}
@@ -119,9 +116,7 @@ func TestBasicUserIntegeration(t *testing.T) {
 
 	url = url_host + "/users/" + IdCreated
 
-	method = "GET"
-
-	reqGet, err := http.NewRequest(method, url, nil)
+	reqGet, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		t.Log(err)
 	}
@@ -162,9 +157,8 @@ func TestBasicUserIntegeration(t *testing.T) {
 	t.Log("Update One User...")
 
 	url = url_host + "/users/" + IdCreated + "?login=toto&first_name=toto&last_name=toto&password=toto&email=toto@toto.fr"
-	method = "PUT"
 
-	reqUpdate, err := http.NewRequest(method, url, nil)
+	reqUpdate, err := http.NewRequest("PUT", url, nil)
 	if err != nil {
 		t.Log(err)
 	}
@@ -197,9 +191,8 @@ func TestBasicUserIntegeration(t *testing.T) {
 	t.Log("Delete One User...")
 
 	url = url_host + "/users/" + IdCreated
-	method = "PUT"
 
-	reqDelete, err := http.NewRequest(method, url, nil)
+	reqDelete, err := http.NewRequest("PUT", url, nil)
 	if err != nil {
 		t.Log(err)
 	}

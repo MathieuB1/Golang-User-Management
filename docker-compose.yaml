@@ -15,12 +15,20 @@ services:
 
     web_rest:
         build: ./
+        environment:
+            - DB_HOST=postgres
+            - DB_PORT=5432
+            - DB_USER=postgres
+            - DB_PASSWORD=postgres
+            - DB_NAME=postgres
+            - APP_SALT=secret
         links:
             - postgres
         depends_on:
             - postgres
         ports:
             - '8000:8000'
+
 
 volumes:
     pg_data: {}

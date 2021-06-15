@@ -49,7 +49,7 @@ func ConnectDB() *gorm.DB {
 	db, err := gorm.Open(postgres.Open(setDBConf(pgConf)), &gorm.Config{})
 	if err != nil {
 
-		log.Println("Trying local Database instead...")
+		log.Println("Fallback to local Database...")
 
 		pgConf.host = "localhost"
 		pgConf.port = "5432"

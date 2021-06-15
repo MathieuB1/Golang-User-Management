@@ -12,4 +12,4 @@ before_install:
   - docker-compose up -d
 
 script:
-  - sleep 30 && docker ps && docker exec -it $(docker ps | grep web_rest_1 | awk '{print $NF}') /bin/bash -c "go test -v ./common/ && go test -v ./controllers/ && go test -v ./controllers_tools/ && go test -v ./models/ && go test -v ./test/it/"
+  - sleep 30 && docker ps && docker exec -it $(docker ps | grep web_rest_1 | awk '{print $NF}') /bin/bash -c "go test -cover -v ./common/ && go test  -cover -v ./controllers/ && go test  -cover -v ./controllers_tools/ && go test -v ./models/ && go test -v ./test/it/"

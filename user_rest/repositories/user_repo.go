@@ -48,8 +48,8 @@ func (r *UserRepo) Save(user interface{}) (*[]byte, error) {
 
 func (r *UserRepo) Delete(id string) error {
 	log.Println("DELETE RECORD")
-	var users []models.User
-	r.db.Where("id = ?", id).Delete(&users)
+	var user models.User
+	r.db.Where("id = ?", id).Delete(&user)
 	log.Println("END DELETE RECORD")
 	return nil
 }

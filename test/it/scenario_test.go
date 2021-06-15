@@ -192,7 +192,7 @@ func TestBasicUserIntegeration(t *testing.T) {
 
 	url = url_host + "/users/" + IdCreated
 
-	reqDelete, err := http.NewRequest("PUT", url, nil)
+	reqDelete, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
 		t.Log(err)
 	}

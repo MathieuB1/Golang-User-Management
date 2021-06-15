@@ -25,44 +25,52 @@ func NewBaseHandler(userRepo models.UserRepository) *BaseHandler {
 //**********************************
 // Helper for Authentification
 //**********************************
-func isAuthorised(w http.ResponseWriter, h *BaseHandler, login *string, password *string) bool {
+func (h *BaseHandler) IsAuthorised(login *string, password *string) (bool, error) {
+
+	log.Println("Check Authorization...")
+
 	firstname := "login"
 
 	userByte, err := h.userRepo.FindOneRecord(&firstname, login)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return false
+		return false, err
 	}
 
 	user, err := controllers_tools.GetUserFromBytes(userByte)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return false, err
 	}
 
 	pass := user.Password
 
-	return common.CreateHash(password) == pass
+	log.Println("End Check Authorization...")
+
+	return common.CreateHash(password) == pass, nil
 }
 
-func IsUserAuth(h *BaseHandler, w http.ResponseWriter, r *http.Request) *string {
+func (h *BaseHandler) IsUserAuth(w http.ResponseWriter, r *http.Request) *string {
 	w.Header().Add("Content-Type", "application/json")
 
 	log.Println("Starting Login...")
 	login, password, ok := r.BasicAuth()
 
+	isLogged := true
+
 	if !ok {
+		isLogged = false
+	}
+
+	if authStatus, _ := h.IsAuthorised(&login, &password); !authStatus {
+		isLogged = false
+	}
+
+	if !isLogged {
 		w.Header().Add("WWW-Authenticate", `Basic realm="Give login and password"`)
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"message": "No basic auth present"}`))
+		w.Write([]byte(`{"message": "Error bad or missing basic auth"}`))
 		return nil
 	}
 
-	if !isAuthorised(w, h, &login, &password) {
-		w.Header().Add("WWW-Authenticate", `Basic realm="Give login and password"`)
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"message": "Invalid username or password"}`))
-		return nil
-	}
 	log.Println("End Login.")
 
 	return &login
@@ -144,8 +152,8 @@ func (h *BaseHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	userByte, err := h.userRepo.FindOneRecord(&column, &user.Login)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
 	}
+
 	userExistInDB, err := controllers_tools.GetUserFromBytes(userByte)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -153,7 +161,7 @@ func (h *BaseHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	// Reject the request if the user already exists
 	if userExistInDB.Login != user.Login {
-		log.Println("SAVING")
+
 		_, err := h.userRepo.Save(user)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -182,7 +190,7 @@ func (h *BaseHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 func (h *BaseHandler) FindUser(w http.ResponseWriter, r *http.Request) {
 	log.Println("Starting FindUser...")
 
-	userLogged := IsUserAuth(h, w, r)
+	userLogged := h.IsUserAuth(w, r)
 	if userLogged != nil {
 
 		var column = "id"
@@ -227,7 +235,7 @@ func (h *BaseHandler) FindUser(w http.ResponseWriter, r *http.Request) {
 func (h *BaseHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	log.Println("Starting DeleteUser...")
 
-	userLogged := IsUserAuth(h, w, r)
+	userLogged := h.IsUserAuth(w, r)
 	if userLogged != nil {
 
 		vars := mux.Vars(r)
@@ -268,7 +276,7 @@ func (h *BaseHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 func (h *BaseHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	log.Println("Starting UpdateUser...")
 
-	userLogged := IsUserAuth(h, w, r)
+	userLogged := h.IsUserAuth(w, r)
 	if userLogged != nil {
 
 		r.ParseForm()
@@ -278,11 +286,22 @@ func (h *BaseHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 		var login, password, email, first_name, last_name string
 
-		login = r.FormValue("login")
-		password = r.FormValue("password")
-		first_name = r.FormValue("first_name")
-		last_name = r.FormValue("last_name")
-		email = r.FormValue("email")
+		// Seems that POSTMAN is not working
+		// or Golang has some missing Content-Type application/json implementation
+		if len(vars) > 1 {
+			login = vars["login"]
+			password = vars["password"]
+			first_name = vars["first_name"]
+			last_name = vars["last_name"]
+			email = vars["email"]
+
+		} else {
+			login = r.FormValue("login")
+			password = r.FormValue("password")
+			first_name = r.FormValue("first_name")
+			last_name = r.FormValue("last_name")
+			email = r.FormValue("email")
+		}
 
 		if password != "" {
 			password = common.CreateHash(&password)

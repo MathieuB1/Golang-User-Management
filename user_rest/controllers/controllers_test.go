@@ -437,3 +437,51 @@ func TestIsAuthorised(t *testing.T) {
 	userRepo.Delete(strconv.Itoa(userRead.ID))
 
 }
+
+func TestListUsers(t *testing.T) {
+
+	randomUser := "tutu"
+
+	// Create a New User
+	user := models.User{Password: common.CreateHash(&randomUser), Login: randomUser, First_name: "john", Last_name: "wick", Email: "john@wick.com"}
+
+	// Init User Repo
+	h, userRepo := createNewUserRepo()
+
+	userByte, _ := userRepo.Save(&user)
+
+	var userRead models.User
+	json.Unmarshal(*userByte, &userRead)
+
+	// Prepare Request
+	req, err := http.NewRequest("GET", "/users/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Add Headers
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Host", "localhost:8000")
+
+	// Test the Handler
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(h.ListUsers)
+
+	handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v",
+			status, http.StatusOK)
+	}
+
+	//Assert User
+	assertWith := `{"First_name":"john","Last_name":"wick","Email":"john@wick.com"}`
+
+	var userCreated []UserAssert
+	json.Unmarshal(rr.Body.Bytes(), &userCreated)
+
+	userAssertion(t, &assertWith, &userCreated[0])
+
+	userRepo.Delete(strconv.Itoa(userRead.ID))
+
+}
